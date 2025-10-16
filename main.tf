@@ -151,8 +151,6 @@ resource "azurerm_mssql_database" "lab" {
   collation      = "SQL_Latin1_General_CP1_CI_AS"
   sku_name       = "Basic" # Most cost-effective option
 
-  # VULNERABLE: No backup redundancy
-  transparent_data_encryption_enabled = false
 }
 
 
