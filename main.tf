@@ -155,13 +155,6 @@ resource "azurerm_mssql_database" "lab" {
   transparent_data_encryption_enabled = false
 }
 
-# SQL Server Firewall Rule (Vulnerable Configuration)
-resource "azurerm_mssql_server_firewall_rule" "lab" {
-  name             = "AllowAllAzureIps"
-  server_id        = azurerm_mssql_server.lab.id
-  start_ip_address = "0.0.0.0"
-  end_ip_address   = "255.255.255.255" # VULNERABLE: Allow all IPs
-}
 
 # App Service Plan (Free tier)
 resource "azurerm_app_service_plan" "lab" {
@@ -210,8 +203,6 @@ resource "azurerm_app_service" "lab" {
     # VULNERABLE: Minimum TLS version not enforced
     min_tls_version = "1.0"
 
-    # VULNERABLE: Client certificate not required
-    client_certificate_mode = "Optional"
   }
 }
 
@@ -244,8 +235,7 @@ resource "azurerm_windows_virtual_machine" "lab" {
   location            = azurerm_resource_group.lab.location
   resource_group_name = azurerm_resource_group.lab.name
   size                = "Standard_B1s" # Most cost-effective
-
-  disable_password_authentication = false
+  network_interface_ids = [azurerm_network_interface.lab.id]
 
   # VULNERABLE: Weak credentials
   admin_username = "azureuser"
