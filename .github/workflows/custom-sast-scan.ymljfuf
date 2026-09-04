@@ -1,0 +1,95 @@
+name: Custom SAST Scan
+
+on:
+  push:
+    branches: ["main"]
+
+permissions: 
+  contents: read
+  security-events: write
+
+jobs:
+  name: semgrep-ci
+  runs-on: ubuntu-latest
+  container:
+    # A Docker image with Semgrep installed. Do not change this.
+    image: semgrep/semgrep
+
+  # Skip any PR created by dependabot to avoid permission issues:
+  if: (github.actor != 'dependabot[bot]')
+
+  steps:
+    # Fetch project source with GitHub Actions Checkout. Use either v3 or v4.
+    uses: actions/checkout@v6
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      run: semgrep ci
+
+
+  jobs:
+    name: checkov-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.4
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Run Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          quiet: true
+          output_format: sarif
+          output_file_path: results.sarif
+          soft_fail: true # set to false once findings are triaged, to block on issues
+
+      - name: Upload Checkov scan results to GitHub Security tab
+        uses: actions/upload-artifact@v4
+        with:
+          name: Checkov-report
+          path: results.sarif
+
+      - name: Run Trivy vulnerability scanner (IaC)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: .
+          exit-code: 0 # set to 1 once findings are triaged, to block on issues
+          severity: CRITICAL,HIGH,MEDIUM
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: actions/upload-artifact@v4
+        with:
+          name: Trivy-report
+          path: trivy-results.sarif
+ 
+      - name: Build project with Maven
+        run: mvn clean install
+      - name: Depcheck
+        uses: dependency-check/Dependency-Check_Action@main
+        id: Depcheck
+        with:
+          project: 'test'
+          path: '.'
+          format: 'HTML'
+          out: 'reports' # this is the default, no need to specify unless you wish to override it
+          args: >
+            --failOnCVSS 7
+            --enableRetired
+
+      - name: Upload DPC scan results to GitHub Security tab
+        uses: actions/upload-artifact@v4
+        with:
+          name: DPC-report
+          path: reports.HTML
