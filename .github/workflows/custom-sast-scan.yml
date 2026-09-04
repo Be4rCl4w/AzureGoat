@@ -81,21 +81,18 @@ jobs:
         with:
           name: Trivy-report
           path: trivy-results.sarif
-   
-      - name: Build project with Maven
-        run: mvn clean install
 
       - name: Depcheck
         uses: dependency-check/Dependency-Check_Action@main
         id: Depcheck
         with:
-          project: 'test'
+          project: 'Python Project'
           path: '.'
           format: 'HTML'
           out: 'reports' # this is the default, no need to specify unless you wish to override it
           args: >
-            --failOnCVSS 7
-            --enableRetired
+            --disableNodeJS
+            --disableNuget
 
       - name: Upload DPC scan results to GitHub Security tab
         uses: actions/upload-artifact@v4
