@@ -3,7 +3,6 @@ name: Custom SAST Scan
 on:
   push:
     branches: ["main"]
-  workflow_dispatch:
 
 permissions: 
   contents: read
@@ -60,11 +59,19 @@ jobs:
           output_file_path: results.sarif
           soft_fail: true # set to false once findings are triaged, to block on issues
 
-      - name: Upload Checkov scan results to GitHub Security tab
-        uses: actions/upload-artifact@v4
+      - name: Upload Checkov SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() # Ensures results upload even if previous steps fail
         with:
-          name: Checkov-report
-          path: results.sarif
+          sarif_file: results.sarif
+          category: checkov
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24' # Specify your required version here
+
+
 
       - name: Run Trivy vulnerability scanner (IaC)
         uses: aquasecurity/trivy-action@v0.36.0
@@ -76,11 +83,13 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: actions/upload-artifact@v4
+      - name: Upload Trivy SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          name: Trivy-report
-          path: trivy-results.sarif
+          sarif_file: trivy-results.sarif
+          category: trivy
+   
 
       - name: Depcheck
         uses: dependency-check/Dependency-Check_Action@main
@@ -88,14 +97,12 @@ jobs:
         with:
           project: 'Python Project'
           path: '.'
-          format: 'HTML'
-          out: 'reports' # this is the default, no need to specify unless you wish to override it
-          args: >
-            --disableNodeJS
-            --disableNuget
+          format: 'SARIF' # Changed from HTML to SARIF for Code Scanning compatibility
+          out: 'reports'
 
-      - name: Upload DPC scan results to GitHub Security tab
-        uses: actions/upload-artifact@v4
+      - name: Upload Dependency-Check SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          name: DPC-report
-          path: reports/ # Updated to reflect out directory structure
+          sarif_file: reports/dependency-check-report.sarif
+          category: dependency-check
